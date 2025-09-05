@@ -1,0 +1,34 @@
+# Période et horizon
+start_date: "2000-01"      # début de l'historique
+forecast_horizon_months: 12
+
+# Provinces cibles (codes StatCan usuels)
+provinces:
+  - Manitoba
+  - Quebec
+  - Ontario
+  - Alberta
+  - British Columbia
+
+# Denrées (mots-clés pour filtrer les libellés StatCan)
+products:
+  milk:
+    keywords: ["milk"]
+  eggs:
+    keywords: ["egg"]
+  meat:
+    keywords: ["meat", "beef", "pork", "poultry"]
+
+# Tables StatCan (PIDs)
+tables:
+  cpi_all: "1810000401"        # CPI mensuel, non désaisonnalisé
+  retail_food: "1810024502"    # Prix de détail mensuels – Aliments
+
+# Langue pour getFullTableDownloadCSV
+lang: "en"
+
+# Dossier de sortie
+paths:
+  raw: "data/raw"
+  processed: "data/processed"
+  outputs: "outputs"
