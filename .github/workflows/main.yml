@@ -3,7 +3,7 @@ name: Phase2 Monthly Retrain & Forecast
 on:
   schedule:
     - cron: "0 12 3 * *"   # le 3 de chaque mois à 12:00 UTC (~08:00 Toronto)
-  workflow_dispatch: {}     # permet le bouton "Run workflow"
+  workflow_dispatch: {}     # bouton "Run workflow"
 
 jobs:
   run:
@@ -11,36 +11,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Debug tree
+        run: |
+          pwd
+          ls -la
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('phase2/requirements_phase2.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
       - name: Install deps
-        run: |
-          pip install -r phase2/requirements_phase2.txt
+        run: pip install -r requirements_phase2.txt
 
       - name: Ingest StatCan
-        working-directory: phase2
         run: python ingest_statcan.py
 
       - name: Retrain
-        working-directory: phase2
         run: python retrain.py
 
       - name: Forecast 12m
-        working-directory: phase2
         run: python forecast_run.py
 
       - name: Upload outputs
         uses: actions/upload-artifact@v4
         with:
           name: phase2-outputs
-          path: phase2/outputs
+          path: outputs
