@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+data/raw/
+outputs/
+models/
+models_phase2/
+*.pkl
+*.zip
+*.parquet
+.vscode/
+.DS_Store
