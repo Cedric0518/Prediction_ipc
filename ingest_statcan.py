@@ -1,6 +1,10 @@
 # ingest_statcan.py
-# Télécharge les tables StatCan (CSV zip), filtre provinces/produits, et produit un dataset "tidy".
+# Télécharge les tables StatCan (CSV zip) via lien direct "base8" + fallback WDS,
+# filtre provinces/produits, borne la période depuis start_date,
+# et génère un dataset "tidy" : data/processed/series_food_tidy.csv
+#
 # Dépendances : requests, pandas, PyYAML
+#   pip install requests pandas PyYAML
 
 import io
 import os
@@ -14,54 +18,70 @@ import yaml
 
 WDS_BASE = "https://www150.statcan.gc.ca/t1/wds/rest"
 
-# ------------------ Config ------------------ #
+# ======================= CONFIG =======================
 
 def load_cfg(path: str = "config_phase2.yaml") -> dict:
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
-# ------------------ Helpers PID ------------------ #
+# ======================= PID / URL =======================
 
-def _pid_formats(pid: str) -> Tuple[str, str]:
+def _pid_formats(pid: str) -> Tuple[str, str, str]:
     """
-    Retourne (pid_numeric, pid_hyphen).
-    - Accepte '1810000401' ou '18-10-0004-01' en entrée.
+    Retourne (pid_numeric_10, pid_hyphen, pid_base8)
+      - Accepte '1810000401' (numérique 10),
+               '18-10-0004-01' (avec tirets),
+               ou '18100004' (base8).
+      - pid_base8 = 8 premiers chiffres => utilisé par l'URL CSV direct.
     """
     p = pid.strip()
     if "-" in p:
-        # hyphen -> numeric
+        # hyphen -> digits
         digits = p.replace("-", "")
         if len(digits) < 10:
             raise ValueError(f"PID hyphen inattendu: {pid}")
-        return digits, p
+        pid_numeric_10 = digits[:10]
+        pid_base8 = digits[:8]
+        return pid_numeric_10, p, pid_base8
     else:
-        # numeric -> hyphen (ex: 1810000401 -> 18-10-0004-01)
-        if len(p) < 10:
+        if len(p) == 10:
+            pid_numeric_10 = p
+            pid_hyphen = f"{p[0:2]}-{p[2:4]}-{p[4:8]}-{p[8:10]}"
+            pid_base8 = p[:8]
+            return pid_numeric_10, pid_hyphen, pid_base8
+        elif len(p) == 8:
+            pid_base8 = p
+            pid_numeric_10 = p + "01"  # par défaut, utile pour WDS fallback
+            pid_hyphen = f"{p[0:2]}-{p[2:4]}-{p[4:8]}-01"
+            return pid_numeric_10, pid_hyphen, pid_base8
+        else:
             raise ValueError(f"PID numérique inattendu: {pid}")
-        hy = f"{p[0:2]}-{p[2:4]}-{p[4:8]}-{p[8:10]}"
-        return p, hy
 
-# ------------------ Téléchargement ------------------ #
-
-def _csv_full_table_url(pid_hyphen: str, lang: str = "en") -> str:
-    """URL direct CSV (zip) recommandé par StatCan."""
+def _csv_full_table_url(pid_base8: str, lang: str = "en") -> str:
+    """
+    URL direct (ZIP) "CSV Download entire table" :
+      https://www150.statcan.gc.ca/n1/tbl/csv/<base8>-eng.zip
+    """
     suffix = "eng" if lang.lower().startswith("en") else "fra"
-    return f"https://www150.statcan.gc.ca/n1/en/tbl/csv/{pid_hyphen}-{suffix}.zip"
+    return f"https://www150.statcan.gc.ca/n1/tbl/csv/{pid_base8}-{suffix}.zip"
 
-def _wds_full_table_csv_link(pid_numeric: str, lang: str = "en") -> str:
-    """WDS fallback -> lien ZIP."""
-    url = f"{WDS_BASE}/getFullTableDownloadCSV/{pid_numeric}/{lang}"
+def _wds_full_table_csv_link(pid_numeric_10: str, lang: str = "en") -> str:
+    """
+    Fallback WDS -> renvoie un lien ZIP pour la table complète.
+    """
+    url = f"{WDS_BASE}/getFullTableDownloadCSV/{pid_numeric_10}/{lang}"
     r = requests.get(url, headers={"Accept": "application/json"}, timeout=60)
     r.raise_for_status()
     obj = r.json()
     if obj.get("status") != "SUCCESS" or "object" not in obj:
-        raise RuntimeError(f"WDS failed for PID {pid_numeric}: {obj}")
+        raise RuntimeError(f"WDS failed for PID {pid_numeric_10}: {obj}")
     return obj["object"]
 
 def _download_zip_to_df(zip_url: str) -> pd.DataFrame:
     r = requests.get(zip_url, timeout=180)
     r.raise_for_status()
     with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+        # prend le premier CSV du zip
         for name in z.namelist():
             if name.lower().endswith(".csv"):
                 with z.open(name) as f:
@@ -70,21 +90,20 @@ def _download_zip_to_df(zip_url: str) -> pd.DataFrame:
 
 def download_table(pid: str, lang: str = "en") -> pd.DataFrame:
     """
-    Tente l'URL CSV direct avec PID à tirets, puis WDS avec PID numérique.
-    Accepte pid="1810000401" ou "18-10-0004-01".
+    1) Essaie CSV direct avec pid_base8 (…/n1/tbl/csv/<base8>-eng.zip)
+    2) Fallback WDS (getFullTableDownloadCSV) avec pid_numeric_10
     """
-    pid_numeric, pid_hyphen = _pid_formats(pid)
-    # 1) Direct CSV
+    pid_numeric_10, pid_hyphen, pid_base8 = _pid_formats(pid)
+    # 1) Direct CSV (table entière)
     try:
-        url = _csv_full_table_url(pid_hyphen, lang)
-        # debug print (utile en GitHub Actions)
-        print(f"Trying CSV direct: {url}")
+        url = _csv_full_table_url(pid_base8, lang)
+        print(f"Trying CSV direct (base8): {url}")
         return _download_zip_to_df(url)
     except Exception as e1:
-        print(f"CSV direct failed for {pid_hyphen}: {e1}")
-        # 2) WDS fallback
+        print(f"CSV direct failed for {pid_base8}: {e1}")
+        # 2) Fallback WDS
         try:
-            link = _wds_full_table_csv_link(pid_numeric, lang)
+            link = _wds_full_table_csv_link(pid_numeric_10, lang)
             print(f"Trying WDS link: {link}")
             return _download_zip_to_df(link)
         except Exception as e2:
@@ -93,18 +112,23 @@ def download_table(pid: str, lang: str = "en") -> pd.DataFrame:
                 f"CSV err: {e1} | WDS err: {e2}"
             )
 
-# ------------------ Préparation & filtres ------------------ #
+# ======================= Préparation / Filtres =======================
 
 def _casefold_list(xs: List[str]) -> List[str]:
     return [x.casefold() for x in xs]
 
 def get_col(df: pd.DataFrame, candidates: List[str]) -> Optional[str]:
+    """
+    Trouve une colonne par noms possibles (insensible à la casse, tolère substring).
+    """
     cols = list(df.columns)
     folded = {c.casefold(): c for c in cols}
-    for cand in candidates:  # match exact insensible à la casse
+    # match exact (case-insensitive)
+    for cand in candidates:
         if cand.casefold() in folded:
             return folded[cand.casefold()]
-    for c in cols:           # match substring
+    # match 'contient'
+    for c in cols:
         low = c.casefold()
         if any(cand.casefold() in low for cand in candidates):
             return c
@@ -130,6 +154,9 @@ def filter_provinces(df: pd.DataFrame, provinces: List[str]) -> pd.DataFrame:
     return df[mask]
 
 def filter_by_keywords(df: pd.DataFrame, keywords: List[str]) -> pd.DataFrame:
+    """
+    Filtre sur une colonne produit probable (Products/Series/Label/Food/Category/Description).
+    """
     candidates = ["Products", "Product", "Series", "Label", "Food", "Category", "Description"]
     col = get_col(df, candidates)
     if col is None:
@@ -138,7 +165,7 @@ def filter_by_keywords(df: pd.DataFrame, keywords: List[str]) -> pd.DataFrame:
     mask = df[col].astype(str).str.casefold().apply(lambda s: any(k in s for k in keys))
     return df[mask].copy()
 
-# ------------------ Ingestion principale ------------------ #
+# ======================= Ingestion principale =======================
 
 def ingest_all(cfg_path: str = "config_phase2.yaml") -> pd.DataFrame:
     cfg = load_cfg(cfg_path)
@@ -171,7 +198,7 @@ def ingest_all(cfg_path: str = "config_phase2.yaml") -> pd.DataFrame:
     df_r.to_csv(retail_out, index=False)
     print(f"✅ Retail food sauvegardé: {retail_out} ({len(df_r):,} lignes)")
 
-    # 3) Tidy: Date, Province, ProductKey, Indice_IPC_produit
+    # 3) Dataset "tidy": Date, Province, ProductKey, Indice_IPC_produit
     print("🧹 Construction du dataset 'tidy' (Date, Province, ProductKey, Indice_IPC_produit)...")
     date_col = get_col(df_r, ["REF_DATE", "Reference period", "Date"])
     geo_col  = get_col(df_r, ["GEO", "Geography", "GEOGRAPHY"])
@@ -207,14 +234,16 @@ def ingest_all(cfg_path: str = "config_phase2.yaml") -> pd.DataFrame:
         raise RuntimeError("Aucun segment produit (milk/eggs/meat) détecté après filtrage.")
 
     out = pd.concat(parts, ignore_index=True)
-    out = out.dropna(subset=["Indice_IPC_produit"]).sort_values(["Province", "ProductKey", "Date"]).reset_index(drop=True)
+    out = out.dropna(subset=["Indice_IPC_produit"]).sort_values(
+        ["Province", "ProductKey", "Date"]
+    ).reset_index(drop=True)
 
     processed_path = os.path.join(proc_dir, "series_food_tidy.csv")
     out.to_csv(processed_path, index=False)
     print(f"✅ Tidy dataset sauvegardé: {processed_path} ({len(out):,} lignes)")
     return out
 
-# ------------------ CLI ------------------ #
+# ======================= CLI =======================
 
 def main():
     ap = argparse.ArgumentParser(description="Ingestion StatCan (CPI + Retail Food) -> tidy CSV")
