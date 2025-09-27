@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from typing import List, Optional, Tuple
 
-OUTPUTS_ROOT = Path(os.getenv("OUTPUTS_ROOT", "outputs"))
+OUTPUTS_ROOT = Path(".")
 PROCESSED_SERIES = Path("data/processed/series_food_tidy.csv")  # optionnel (historique)
 
 # ---------- Helpers ----------

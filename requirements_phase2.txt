@@ -1,7 +1,19 @@
+# ==== Core data/science ====
 pandas>=2.0
 numpy>=1.24
 scikit-learn>=1.3
 joblib>=1.3
+
+# ==== Viz & App (Phase 1 UI + Phase 2 plots) ====
 matplotlib>=3.7
+streamlit>=1.32
+
+# ==== Config & HTTP (Phase 2 ingestion) ====
 PyYAML>=6.0
 requests>=2.31
+openai>=1.40.0
+
+# ==== Optionnel (décommentez si ) ====
+# xgboost>=1.7           # si on actives le modèle XGBoost côté Phase 1
+# prophet>=1.1           # si on testes Prophet (nécessite cmdstan)
+# pmdarima>=2.0          # si on testes ARIMA/SARIMAX auto

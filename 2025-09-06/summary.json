@@ -1,0 +1,92 @@
+[
+  {
+    "key": "Alberta__eggs",
+    "last_hist": "2025-07",
+    "first_forecast": "2025-08",
+    "last_forecast": "2026-07"
+  },
+  {
+    "key": "Alberta__meat",
+    "last_hist": "2025-07",
+    "first_forecast": "2025-08",
+    "last_forecast": "2026-07"
+  },
+  {
+    "key": "Alberta__milk",
+    "last_hist": "2025-07",
+    "first_forecast": "2025-08",
+    "last_forecast": "2026-07"
+  },
+  {
+    "key": "British_Columbia__eggs",
+    "last_hist": "2025-07",
+    "first_forecast": "2025-08",
+    "last_forecast": "2026-07"
+  },
+  {
+    "key": "British_Columbia__meat",
+    "last_hist": "2025-07",
+    "first_forecast": "2025-08",
+    "last_forecast": "2026-07"
+  },
+  {
+    "key": "British_Columbia__milk",
+    "last_hist": "2025-07",
+    "first_forecast": "2025-08",
+    "last_forecast": "2026-07"
+  },
+  {
+    "key": "Manitoba__eggs",
+    "last_hist": "2025-07",
+    "first_forecast": "2025-08",
+    "last_forecast": "2026-07"
+  },
+  {
+    "key": "Manitoba__meat",
+    "last_hist": "2025-07",
+    "first_forecast": "2025-08",
+    "last_forecast": "2026-07"
+  },
+  {
+    "key": "Manitoba__milk",
+    "last_hist": "2025-07",
+    "first_forecast": "2025-08",
+    "last_forecast": "2026-07"
+  },
+  {
+    "key": "Ontario__eggs",
+    "last_hist": "2025-07",
+    "first_forecast": "2025-08",
+    "last_forecast": "2026-07"
+  },
+  {
+    "key": "Ontario__meat",
+    "last_hist": "2025-07",
+    "first_forecast": "2025-08",
+    "last_forecast": "2026-07"
+  },
+  {
+    "key": "Ontario__milk",
+    "last_hist": "2025-07",
+    "first_forecast": "2025-08",
+    "last_forecast": "2026-07"
+  },
+  {
+    "key": "Quebec__eggs",
+    "last_hist": "2025-07",
+    "first_forecast": "2025-08",
+    "last_forecast": "2026-07"
+  },
+  {
+    "key": "Quebec__meat",
+    "last_hist": "2025-07",
+    "first_forecast": "2025-08",
+    "last_forecast": "2026-07"
+  },
+  {
+    "key": "Quebec__milk",
+    "last_hist": "2025-07",
+    "first_forecast": "2025-08",
+    "last_forecast": "2026-07"
+  }
+]
