@@ -5,7 +5,8 @@ import pandas as pd
 from datetime import datetime
 from features import make_lag_features
 from viz import save_line_plot
-from recommendations import recommend_for_series
+from llm_recommendations import generate_advice
+from pathlib import Path
 
 MODELS_DIR = "models_phase2"
 OUTPUTS_DIR = "outputs"
@@ -73,10 +74,10 @@ def run_all(processed_csv="data/processed/series_food_tidy.csv", horizon=12, out
         # Graphique (historique + forecast)
         save_line_plot(hist, fut, title=f"{prod} – {prov}", path=os.path.join(out_png_dir, f"{tag}.png"))
 
-        # Conseils
-        advice = recommend_for_series(hist, fut, product=prod, province=prov)
+        # Conseils via agent IA (fallback automatique si pas d'OPENAI_API_KEY)
+        advice_text = generate_advice(province=prov, product=prod, df_fc=fut)
         with open(os.path.join(out_txt_dir, f"advice_{tag}.txt"), "w", encoding="utf-8") as f:
-            f.write(advice)
+            f.write(advice_text)
 
         all_summaries.append({"key": tag, "last_hist": hist["Date"].max(), "first_forecast": fut["Date"].min(), "last_forecast": fut["Date"].max()})
 
