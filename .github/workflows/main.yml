@@ -30,6 +30,8 @@ jobs:
         run: python retrain.py
 
       - name: Forecast 12m
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: python forecast_run.py
 
       - name: Upload outputs
