@@ -1,25 +1,25 @@
-mkdir -p .github/workflows
-cat > .github/workflows/publish_outputs.yml <<'YAML'
 name: Publish Phase2 Outputs to runs branch
 
 on:
   workflow_run:
-    workflows: ["Phase2 Monthly Retrain & Forecast"]
+    workflows: ["Phase2 Monthly Retrain & Forecast"]  # nom EXACT du workflow principal
     types: [completed]
-  workflow_dispatch: {}   # permet de le lancer à la main si besoin
+    branches: [main]                                   # on ne publie que si le run vient de main
 
 permissions:
   contents: write
+  actions: read   # nécessaire pour download-artifact avec run-id
 
 jobs:
   publish:
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+
     steps:
       - name: Download artifact from main workflow
         uses: actions/download-artifact@v4
         with:
-          name: phase2-outputs          # <-- doit matcher le nom de l’artefact
+          name: phase2-outputs                 # doit matcher le nom dans main.yml
           run-id: ${{ github.event.workflow_run.id }}
           path: fetched_outputs
 
@@ -28,20 +28,13 @@ jobs:
         with:
           ref: runs
           fetch-depth: 0
-          path: repo-runs
 
       - name: Copy outputs and commit
         run: |
-          mkdir -p repo-runs/outputs
-          rsync -a fetched_outputs/ repo-runs/outputs/
-          cd repo-runs
+          mkdir -p outputs
+          rsync -a fetched_outputs/ outputs/
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add outputs
           git commit -m "publish: outputs from run $GITHUB_RUN_ID ($(date -u +%F))" || echo "nothing to commit"
           git push origin HEAD:runs
-YAML
-
-git add .github/workflows/publish_outputs.yml
-git commit -m "ci: publish outputs to runs branch"
-git push
